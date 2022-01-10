@@ -1,0 +1,3 @@
+# Classwork :dna:
+
+A dummy package for playing with metclasses, abcs, codecs, etc...
