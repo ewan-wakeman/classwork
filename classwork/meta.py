@@ -113,3 +113,42 @@ class ClassworkABC(metaclass=ClassworkMeta):
         cls: _Type, path: Optional[PathLike] = None, json_str: Optional[str] = None
     ) -> _Type:
         ...
+
+
+class DefaultMeta(ClassworkMeta):
+    ...
+
+
+class DefaultAbc(metaclass=DefaultMeta):
+    """
+    A Base Class for assigning default values to another class.
+
+    When initialised with a dict or named args, the defaults attributes
+    are set. When an class based on DefaultAbc is called with another
+    uninitialised class, it will return that class with a default attributes
+    set."""
+
+    defaults: Dict[str, Any] = {}
+
+    @abstractmethod
+    def __init__(self, params: Dict[str, Any] = {}, **kwargs):
+        """
+        For setting default attrs. This signature must be reimplemented on
+        inheriting classes when implemented. This is to encourage good
+        documentation practices including implementation of docstrings. The
+        default super().__init__() method can be reused however in most cases.
+        """
+        params.update(kwargs)
+        self.defaults = params
+
+    @abstractmethod
+    def __call__(self, cls: ClassworkMeta) -> ClassworkMeta:
+        """For assigning default attrs to another class. This signature must
+        be reimplemented on inheriting classes when implemented. This is to
+        encourage good documentation practices including implementation of
+        docstrings. The default super().__init__() method can be reused
+        however in most cases."""
+        for k, v in self.defaults.items():
+            setattr(cls, k, v)
+
+        return cls

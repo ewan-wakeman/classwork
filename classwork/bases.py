@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
 from collections.abc import KeysView, ItemsView, ValuesView
 from inspect import isclass, ismethod
-from .meta import ClassworkABC, PathLike
+from .meta import ClassworkABC, ClassworkMeta, DefaultAbc, PathLike
 from .codecs import ClassworkEncoder, ClassworkDecoder
 
 
@@ -137,3 +137,33 @@ class ClassWorkBase(ClassworkABC):
             )
 
         return cls(o)
+
+
+class DefaultDecorator(DefaultAbc):
+    """
+    DefaultDecorator
+
+    Typical Usage
+    ```
+    @DefaultDecorator({"a":5, "b": "hello"})
+    class NewClass():
+        a: int
+        b: str
+    ```
+    """
+
+    def __init__(self, params: Dict[str, Any] = {}, **kwargs):
+        """
+        Takes key value pairs in the form of a `params` dict or `**kwargs` and
+        assigns them to a new instance of this class. This can then be
+        """
+        super().__init__(params=params, **kwargs)
+
+    def __call__(self, cls: ClassworkMeta) -> ClassworkMeta:
+        """
+        Assigns any items in self.defaults as default attrs on the class
+        provided to the cls argument. This is automatically called when
+        an initialised instance of this class is used as a decorator for
+        another class.
+        """
+        return super().__call__(cls)
