@@ -1,4 +1,13 @@
+# Poetry directoris and files we don't want to send to repo
 /dist
 *.lock
+
+# Jupyter
+.ipynb_checkpoints
 notebooks/
+
+# mypy
+.mypy_cache
+
+# setup
 *__pycache__
