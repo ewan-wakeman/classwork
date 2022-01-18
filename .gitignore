@@ -1,6 +1,4 @@
-# Poetry directoris and files we don't want to send to repo
-/dist
-*.lock
+# Poetry directories and files we don't want to send to repo
 
 # Jupyter
 .ipynb_checkpoints
@@ -11,3 +9,7 @@ notebooks/
 
 # setup
 *__pycache__
+
+# user-defined
+classwork/usr/classes.py
+classwork/usr/user_defaults.json
