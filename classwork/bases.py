@@ -22,10 +22,10 @@ from .meta import ClassworkABC, ClassworkMeta, DefaultAbc, PathLike
 from .codecs import ClassworkEncoder, ClassworkDecoder
 
 
-ClassworkBaseType = TypeVar("ClassworkBaseType", bound="ClassWorkBase")
+ClassworkBaseType = TypeVar("ClassworkBaseType", bound="ClassworkBase")
 
 
-class ClassWorkBase(ClassworkABC):
+class ClassworkBase(ClassworkABC):
 
     encoder = ClassworkEncoder
     decoder = ClassworkDecoder
@@ -197,7 +197,7 @@ class ParamsBase(ClassworkABC):
         super().__init__(params=params, ignore_check=ignore_check, **kwargs)
 
 
-class MultiIndexDict(ClassWorkBase):
+class MultiIndexDict(ClassworkBase):
 
     indexes: List[str]
     collection: Tuple[Any, ...]
@@ -279,12 +279,12 @@ class ParamSet(MultiIndexDict):
     date_key: Optional[date] = None
 
     indexes: List[str] = ["scen_keys", "geo_keys", "date_key"]
-    collection: Tuple[ClassWorkBase, ...]
+    collection: Tuple[ClassworkBase, ...]
 
     def __init__(
         self,
         params: Dict[str, List] = {},
-        collection: Iterable[ClassWorkBase] = [],
+        collection: Iterable[ClassworkBase] = [],
         *,
         scen_keys: Optional[List[str]] = None,
         geo_keys: Optional[List[str]] = None,
@@ -303,10 +303,10 @@ class ParamSet(MultiIndexDict):
 
     @classmethod
     def _check_collection(
-        cls, collection: Iterable[ClassWorkBase], child: ClassworkMeta = ClassWorkBase
-    ) -> Tuple[ClassWorkBase, ...]:
+        cls, collection: Iterable[ClassworkBase], child: ClassworkMeta = ClassworkBase
+    ) -> Tuple[ClassworkBase, ...]:
 
-        tup: Tuple[ClassWorkBase, ...] = ()
+        tup: Tuple[ClassworkBase, ...] = ()
         if isinstance(collection, Sequence):
             tup = tuple(itm for itm in collection)
             assert all(isinstance(itm, child) for itm in tup), (

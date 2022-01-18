@@ -1,5 +1,5 @@
 from abc import abstractmethod, ABCMeta
-from enum import EnumMeta
+from enum import EnumMeta, Flag
 from typing import Dict, Mapping, Any, Optional, TypeVar, Union
 from pathlib import Path
 from logzero import logger
@@ -7,28 +7,48 @@ from logzero import logger
 _Type = TypeVar("_Type")
 PathLike = Union[Path, str]
 
+# Metaclasses
+# Parent metaclasses for the types of class used in classwork
+
 
 class ClassworkMeta(ABCMeta):
+    "A metaclass for all classes belonging to the `classwork` package"
     ...
 
 
-class CodecMeta(ABCMeta):
+class CodecMeta(ClassworkMeta):
+    "A metaclass for `classwork` codecs (encoders/decoders)"
     ...
 
 
-class CodecABC(metaclass=CodecMeta):
+class DefaultsMeta(ClassworkMeta):
+    "A metaclass for classes which assign defaults to decorated classes"
     ...
 
 
-class DefaultMeta(ClassworkMeta):
+class ClassworkEnumMeta(EnumMeta, ClassworkMeta):
+    "A metaclass for enums in `classwork`"
     ...
 
 
-class KnownDefaultsMeta(ClassworkMeta):
+class ParamMeta(ClassworkMeta):
+    "A metclass for parameter holding classes in classwork"
     ...
+
+
+class SetMeta(ClassworkMeta):
+    """A metaclass for sets of parameter holding classes derivedfrom `ParamMeta` and
+    `ParamAbc`"""
+
+
+# Abstract Base Classes (ABCs)
 
 
 class ClassworkABC(metaclass=ClassworkMeta):
+    """An abstract base class for all classes used in `classwork`. This class should be
+    used either as a base class or a mixin class with another ABC defined in this file.
+    Each"""
+
     def __init__(
         self,
         params: Mapping[str, Any] = {},
@@ -48,12 +68,20 @@ class ClassworkABC(metaclass=ClassworkMeta):
         cls, params: Dict[str, Any], ignore_check: bool = False
     ) -> Dict[str, Any]:
         if not ignore_check:
+            kn_cls = {cls.__name__: cls}
+            for subcls in cls.__subclasses__():
+                kn_cls[subcls.__name__] = subcls
+
             if "_cls" in params:
                 _cls = params.pop("_cls")
-                assert _cls == cls.__name__, (
-                    f"__init__ recieved object encoded as {_cls} but requires "
-                    f"{cls.__name__}."
-                )
+                try:
+                    _cls = kn_cls[_cls]
+                except KeyError:
+                    raise AttributeError(
+                        f"__init__ recieved object encoded as {_cls} but requires "
+                        f"{cls} or on of its subclasses "
+                        f"{[kn_cls[x] for x in kn_cls if x != cls.__name__]}."
+                    )
 
         if "_params" in params:
             _params = params.pop("_params")
@@ -127,7 +155,7 @@ class ClassworkABC(metaclass=ClassworkMeta):
         ...
 
 
-class DefaultAbc(metaclass=DefaultMeta):
+class DefaultAbc(ClassworkABC, metaclass=DefaultsMeta):
     """
     A Base Class for assigning default values to another class.
 
@@ -162,5 +190,13 @@ class DefaultAbc(metaclass=DefaultMeta):
         return cls
 
 
-class KnownDefaultsABC(metaclass=KnownDefaultsMeta):
+class KnownDefaultsABC(Flag, metaclass=ClassworkEnumMeta):
+    ...
+
+
+class CodecABC(metaclass=CodecMeta):
+    ...
+
+
+class GeographyABC(Flag, metaclass=ClassworkEnumMeta):
     ...
