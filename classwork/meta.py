@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABCMeta
+from enum import EnumMeta
 from typing import Dict, Mapping, Any, Optional, TypeVar, Union
 from pathlib import Path
 from logzero import logger
@@ -19,9 +20,20 @@ class CodecABC(metaclass=CodecMeta):
     ...
 
 
+class DefaultMeta(ClassworkMeta):
+    ...
+
+
+class KnownDefaultsMeta(ClassworkMeta):
+    ...
+
+
 class ClassworkABC(metaclass=ClassworkMeta):
     def __init__(
-        self, params: Mapping[str, Any] = {}, ignore_check: bool = False, **kwargs
+        self,
+        params: Mapping[str, Any] = {},
+        ignore_check: bool = False,
+        **kwargs,
     ):
         params = dict(params)
         if kwargs:
@@ -115,10 +127,6 @@ class ClassworkABC(metaclass=ClassworkMeta):
         ...
 
 
-class DefaultMeta(ClassworkMeta):
-    ...
-
-
 class DefaultAbc(metaclass=DefaultMeta):
     """
     A Base Class for assigning default values to another class.
@@ -152,3 +160,7 @@ class DefaultAbc(metaclass=DefaultMeta):
             setattr(cls, k, v)
 
         return cls
+
+
+class KnownDefaultsABC(metaclass=KnownDefaultsMeta):
+    ...
