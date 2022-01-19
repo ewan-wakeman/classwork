@@ -23,6 +23,8 @@ from .codecs import ClassworkEncoder, ClassworkDecoder
 
 
 ClassworkBaseType = TypeVar("ClassworkBaseType", bound="ClassworkBase")
+_Child = TypeVar("_Child", bound=ClassworkMeta)
+_Type = TypeVar("_Type")
 
 
 class ClassworkBase(ClassworkABC):
@@ -42,7 +44,15 @@ class ClassworkBase(ClassworkABC):
         super().__init__(params=params, **kwargs)
 
     def __getitem__(self, attr: str) -> Any:
-        return super().__getitem__(attr)
+        try:
+            return super().__getitem__(attr)
+        except AttributeError as e:
+            err = e
+
+        try:
+            return self.__get_hidden_item__(attr)
+        except AttributeError:
+            raise err
 
     def __setitem__(self, attr: str, value: Any) -> None:
         if attr not in self._default_attrs:
@@ -120,7 +130,7 @@ class ClassworkBase(ClassworkABC):
         self, path: PathLike, defaults: bool = False, hidden: bool = False, **kwargs
     ) -> Path:
 
-        if isinstance(path, str):
+        if not isinstance(path, Path):
             path = Path(path)
 
         o = self._class_dict(defaults, hidden)
@@ -152,6 +162,10 @@ class ClassworkBase(ClassworkABC):
             )
 
         return cls(o)
+
+    def __get_hidden_item__(self, attr: str) -> Any:
+        hattr: str = f"_{attr}"
+        return self[hattr]
 
 
 class DefaultDecorator(DefaultAbc):
@@ -266,10 +280,6 @@ class MultiIndexDict(ClassworkBase):
                 f"Unsure what to to with pairs of type {type(key_x)} & {type(key_y)}"
             )
             return False
-
-
-_Child = TypeVar("_Child", bound=ClassworkMeta)
-_Type = TypeVar("_Type")
 
 
 class ParamSet(MultiIndexDict):

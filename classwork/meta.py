@@ -1,11 +1,12 @@
 from abc import abstractmethod, ABCMeta
 from enum import EnumMeta, Flag
 from typing import Dict, Mapping, Any, Optional, TypeVar, Union
+from os import PathLike as ospath
 from pathlib import Path
 from logzero import logger
 
 _Type = TypeVar("_Type")
-PathLike = Union[Path, str]
+PathLike = Union[ospath, str]
 
 # Metaclasses
 # Parent metaclasses for the types of class used in classwork
