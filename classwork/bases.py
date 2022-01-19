@@ -13,12 +13,12 @@ from typing import (
     TypeVar,
 )
 from collections.abc import KeysView, ItemsView, ValuesView
-from inspect import isclass, ismethod
+from inspect import isclass, ismethod, isfunction
 from datetime import date
 from enum import Enum
 from logzero import logger
 
-from .meta import ClassworkABC, ClassworkMeta, DefaultAbc, PathLike
+from .meta import ClassworkAbc, ClassworkMeta, DefaultAbc, PathLike
 from .codecs import ClassworkEncoder, ClassworkDecoder
 
 
@@ -27,7 +27,10 @@ _Child = TypeVar("_Child", bound=ClassworkMeta)
 _Type = TypeVar("_Type")
 
 
-class ClassworkBase(ClassworkABC):
+class ClassworkBase(ClassworkAbc):
+
+    """Base Class for other Parameter holding classes in `classwork`. Implements methods
+    to encode itself in a standard way."""
 
     encoder = ClassworkEncoder
     decoder = ClassworkDecoder
@@ -37,22 +40,27 @@ class ClassworkBase(ClassworkABC):
             attr
             for attr in self.__class__.__dict__
             if not any(
-                [ismethod(self[attr]), isclass(self[attr]), attr.startswith("_")]
+                [
+                    ismethod(self[attr]),
+                    isclass(self[attr]),
+                    isfunction(self[attr]),
+                    attr.startswith("_"),
+                ]
             )
         ]
         self._default_attrs = default_attrs
         super().__init__(params=params, **kwargs)
 
     def __getitem__(self, attr: str) -> Any:
-        try:
-            return super().__getitem__(attr)
-        except AttributeError as e:
-            err = e
-
-        try:
-            return self.__get_hidden_item__(attr)
-        except AttributeError:
-            raise err
+        _attr = f"_{attr}"
+        if attr in self.__dict__:
+            return getattr(self, attr)
+        elif _attr in self.__dict__:
+            return getattr(self, _attr)
+        elif attr in self.__class__.__dict__:
+            return getattr(self.__class__, attr)
+        else:
+            raise KeyError(f"attribute {attr} not found")
 
     def __setitem__(self, attr: str, value: Any) -> None:
         if attr not in self._default_attrs:
@@ -73,18 +81,6 @@ class ClassworkBase(ClassworkABC):
 
         return " ".join((str(self.__class__), str(disp_keys)))
 
-    def items(self, defaults: bool = False, hidden: bool = False) -> ItemsView:
-        dct = self.asdict(defaults, hidden)
-        return dct.items()
-
-    def values(self, defaults: bool = False, hidden: bool = False) -> ValuesView:
-        dct = self.asdict(defaults, hidden)
-        return dct.values()
-
-    def keys(self, defaults: bool = False, hidden: bool = False) -> KeysView:
-        dct = self.asdict(defaults, hidden)
-        return dct.keys()
-
     def asdict(self, defaults: bool = False, hidden: bool = False) -> Dict[str, Any]:
         dct = {}
         if defaults:
@@ -103,8 +99,20 @@ class ClassworkBase(ClassworkABC):
 
         return dct
 
+    def keys(self, defaults: bool = False, hidden: bool = False) -> KeysView:
+        dct = self.asdict(defaults, hidden)
+        return dct.keys()
+
+    def items(self, defaults: bool = False, hidden: bool = False) -> ItemsView:
+        dct = self.asdict(defaults, hidden)
+        return dct.items()
+
     def update(self, params: Mapping[str, Any] = {}, **kwargs) -> None:
         return super().update(params=params, **kwargs)
+
+    def values(self, defaults: bool = False, hidden: bool = False) -> ValuesView:
+        dct = self.asdict(defaults, hidden)
+        return dct.values()
 
     def _class_dict(
         self, defaults: bool = False, hidden: bool = False
@@ -163,10 +171,6 @@ class ClassworkBase(ClassworkABC):
 
         return cls(o)
 
-    def __get_hidden_item__(self, attr: str) -> Any:
-        hattr: str = f"_{attr}"
-        return self[hattr]
-
 
 class DefaultDecorator(DefaultAbc):
     """
@@ -198,7 +202,7 @@ class DefaultDecorator(DefaultAbc):
         return super().__call__(cls)
 
 
-class ParamsBase(ClassworkABC):
+class ParamsBase(ClassworkAbc):
     """A default ParamBase"""
 
     def __init__(

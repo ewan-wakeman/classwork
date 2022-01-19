@@ -1,12 +1,12 @@
-from .meta import GeographyABC, KnownDefaultsABC
+from .meta import GeographyAbc, KnownDefaultsAbc
 
 
-class KnownDefaultsClasswork(KnownDefaultsABC):
+class KnownDefaultsClasswork(KnownDefaultsAbc):
     ParamClass = 0
     PackageClass = 1
 
 
-class ClassworkGeo(GeographyABC):
+class ClassworkGeo(GeographyAbc):
     ons_nation = 0
     ons_region = 1
     ons_ua = 2

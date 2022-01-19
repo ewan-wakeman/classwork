@@ -1,6 +1,7 @@
 from abc import abstractmethod, ABCMeta
 from enum import EnumMeta, Flag
-from typing import Dict, Mapping, Any, Optional, TypeVar, Union
+from json import JSONDecoder, JSONEncoder
+from typing import Dict, Mapping, Any, Optional, Type, TypeVar, Union
 from os import PathLike as ospath
 from pathlib import Path
 from logzero import logger
@@ -45,59 +46,73 @@ class SetMeta(ClassworkMeta):
 # Abstract Base Classes (ABCs)
 
 
-class ClassworkABC(metaclass=ClassworkMeta):
+class ClassworkAbc(metaclass=ClassworkMeta):
     """An abstract base class for all classes used in `classwork`. This class should be
     used either as a base class or a mixin class with another ABC defined in this file.
     Each"""
 
+    def __new__(cls, params: Dict[str, Any] = {}, **kw):
+        """Created a new instance of a class or one of its subclasses and optionally
+        performs a check that any value provided to `_cls` (either as a keyword argument
+        or as an item in the `params`) is the class from which the funciton invocation
+        was called or a valid subclass of it. This ensures parameters loaded from json
+        encoded versions of the the class are of the expected value."""
+
+        # gather params and keyword args together
+        params.update(kw)
+
+        if "_cls" in params:
+            kcls = {cls.cls_nm(): cls, cls.__qualname__: cls}
+            kcls.update({_.cls_nm(): _ for _ in cls.__subclasses__()})
+            kcls.update({_.__qualname__: _ for _ in cls.__subclasses__()})
+
+            cls_nm = params.pop("_cls")
+            try:
+                _cls = kcls[cls_nm]
+            except KeyError:
+                raise Exception(f"Unknown class {cls_nm}")
+
+            if "_params" in params:
+                _params = params.pop("_params")
+                params.update(_params)
+
+            # if _cls was in params and identified a valid subclass (or itself)
+            # then return an instance of that class with original parameters but no
+            # _cls parameter and any _params in the main parameter dictionary
+            inst = super().__new__(_cls)
+
+        else:
+            # return itself and call init
+            inst = super().__new__(cls)
+
+        return inst
+
     def __init__(
         self,
         params: Mapping[str, Any] = {},
-        ignore_check: bool = False,
         **kwargs,
     ):
         params = dict(params)
         if kwargs:
             params.update(kwargs)
 
-        params = self._check_params(params, ignore_check)
+        if "_cls" in params:
+            del params["_cls"]
 
         self.update(params)
 
     @classmethod
-    def _check_params(
-        cls, params: Dict[str, Any], ignore_check: bool = False
-    ) -> Dict[str, Any]:
-        if not ignore_check:
-            kn_cls = {cls.__name__: cls}
-            for subcls in cls.__subclasses__():
-                kn_cls[subcls.__name__] = subcls
-
-            if "_cls" in params:
-                _cls = params.pop("_cls")
-                try:
-                    _cls = kn_cls[_cls]
-                except KeyError:
-                    raise AttributeError(
-                        f"__init__ recieved object encoded as {_cls} but requires "
-                        f"{cls} or on of its subclasses "
-                        f"{[kn_cls[x] for x in kn_cls if x != cls.__name__]}."
-                    )
-
-        if "_params" in params:
-            _params = params.pop("_params")
-            params.update(_params)
-
-        return params
+    def cls_nm(cls: ClassworkMeta) -> str:
+        return f"{cls.__module__}.{cls.__qualname__}"
 
     @property
     @abstractmethod
-    def encoder(self) -> CodecMeta:
+    def encoder(self) -> Type[JSONEncoder]:
         ...
 
     @property
     @abstractmethod
-    def decoder(self) -> CodecMeta:
+    def decoder(self) -> Type[JSONDecoder]:
         ...
 
     @abstractmethod
@@ -156,7 +171,7 @@ class ClassworkABC(metaclass=ClassworkMeta):
         ...
 
 
-class DefaultAbc(ClassworkABC, metaclass=DefaultsMeta):
+class DefaultAbc(metaclass=DefaultsMeta):
     """
     A Base Class for assigning default values to another class.
 
@@ -185,19 +200,32 @@ class DefaultAbc(ClassworkABC, metaclass=DefaultsMeta):
         encourage good documentation practices including implementation of
         docstrings. The default super().__init__() method can be reused
         however in most cases."""
+
+        print(cls)
         for k, v in self.defaults.items():
             setattr(cls, k, v)
+
+        setattr(cls, "_default_attrs", self.defaults)
 
         return cls
 
 
-class KnownDefaultsABC(Flag, metaclass=ClassworkEnumMeta):
+class KnownDefaultsAbc(Flag, metaclass=ClassworkEnumMeta):
+    """An Abstract Base Class for `enum` objects which can be used with `.from_known`
+    method on the DefaultAbc classes and subclasses"""
+
     ...
 
 
-class CodecABC(metaclass=CodecMeta):
+class CodecAbc(metaclass=CodecMeta):
+    """An Abstract Base Class for codecs (encoders/decoders) as tagging for JSONEncoders
+    and JSONDecoders"""
+
     ...
 
 
-class GeographyABC(Flag, metaclass=ClassworkEnumMeta):
+class GeographyAbc(Flag, metaclass=ClassworkEnumMeta):
+    """An Abstract Base Class for `enum` objects which can be used to represent
+    geographies"""
+
     ...

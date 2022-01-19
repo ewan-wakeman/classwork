@@ -1,14 +1,14 @@
 from json import JSONEncoder, JSONDecoder
 from typing import Any, Callable, Union, Dict
-from .meta import CodecABC
+from .meta import CodecAbc
 
 
-class ClassworkEncoder(CodecABC, JSONEncoder):
+class ClassworkEncoder(JSONEncoder, CodecAbc):
 
     ...
 
 
-class ClassworkDecoder(CodecABC, JSONDecoder):
+class ClassworkDecoder(JSONDecoder, CodecAbc):
     def __init__(
         self,
         *,
