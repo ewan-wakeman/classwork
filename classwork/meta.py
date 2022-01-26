@@ -1,12 +1,13 @@
 from abc import abstractmethod, ABCMeta
 from enum import EnumMeta, Flag
+from inspect import isfunction
 from json import JSONDecoder, JSONEncoder
-from typing import Dict, Mapping, Any, Optional, Type, TypeVar, Union
+import operator
+from typing import Dict, KeysView, Mapping, Any, Optional, Type, TypeVar, Union
 from os import PathLike as ospath
 from pathlib import Path
 from logzero import logger
 
-_Type = TypeVar("_Type")
 PathLike = Union[ospath, str]
 
 # Metaclasses
@@ -44,6 +45,8 @@ class SetMeta(ClassworkMeta):
 
 
 # Abstract Base Classes (ABCs)
+
+ClassworkType = TypeVar("ClassworkType", bound="ClassworkAbc")
 
 
 class ClassworkAbc(metaclass=ClassworkMeta):
@@ -166,8 +169,10 @@ class ClassworkAbc(metaclass=ClassworkMeta):
     @classmethod
     @abstractmethod
     def from_json(
-        cls: _Type, path: Optional[PathLike] = None, json_str: Optional[str] = None
-    ) -> _Type:
+        cls: Type[ClassworkType],
+        path: Optional[PathLike] = None,
+        json_str: Optional[str] = None,
+    ) -> ClassworkType:
         ...
 
 
@@ -229,3 +234,140 @@ class GeographyAbc(Flag, metaclass=ClassworkEnumMeta):
     geographies"""
 
     ...
+
+
+ParamsType = TypeVar("ParamsType", bound="ParamsAbc")
+
+
+class ParamsAbc:
+    def __init__(
+        self,
+        params={},
+        **kwargs,
+    ):
+        prm_dict = {}
+        prm_dict.update(params)
+        prm_dict.update(kwargs)
+
+        for attr in prm_dict:
+            self[attr] = prm_dict[attr]
+
+    def __getitem__(self, attr):
+        hidden = f"_{attr}"
+        if hasattr(self, attr):
+            return getattr(self, attr)
+        elif hasattr(self, hidden):
+            return getattr(self, hidden)
+        else:
+            raise KeyError(f"attr {attr} not present on class")
+
+    def __setitem__(self, attr, value):
+        hidden = f"_{attr}" if not attr.startswith("_") else attr
+        if hasattr(self, attr):
+            setattr(self, attr, value)
+        else:
+            logger.debug(f"attr {attr} will be hidden and stored as {hidden}")
+            setattr(self, hidden, value)
+
+    def __iter__(self, *, hidden: bool = False, defaults: bool = False):
+        for k in self.as_dict(hidden=hidden, defaults=defaults):
+            yield self[k]
+
+    def keys(self, *, hidden: bool = False, defaults: bool = False):
+        return self.as_dict(hidden=hidden, defaults=defaults).keys()
+
+    def as_dict(self, *, hidden: bool = False, defaults: bool = False):
+
+        dct = {}
+
+        if defaults:
+            def_dct = {
+                k: v
+                for k, v in self.__class__.__dict__.items()
+                if (not isfunction(v)) and (not k.startswith("__"))
+            }
+            dct.update(def_dct)
+
+        dct.update(self.__dict__)
+        if not hidden:
+            dct = {k: v for k, v in dct.items() if not k.startswith("_")}
+
+        return dct
+
+    def update(self: ParamsType, other: Union[ParamsType, Dict[str, Any]]):
+        """updates item to"""
+
+
+OperableType = TypeVar("OperableType", bound="OperableAbc")
+
+
+class OperableAbc(metaclass=ClassworkMeta):
+    """
+    Abstract mixin class for Parameter holding classes allowing for items of the same
+    class to be combined mathematically.
+    """
+
+    @property
+    @abstractmethod
+    def _method(self) -> str:
+        """
+        default mathematical method for a class usually default would be "=" or "assign"
+        """
+        ...
+
+    @abstractmethod
+    def __getitem__(self, attr) -> Any:
+        ...
+
+    @abstractmethod
+    def __setitem__(self, attr, value):
+        ...
+
+    @abstractmethod
+    def keys(self) -> KeysView:
+        ...
+
+    @abstractmethod
+    def as_dict(self, **kwargs) -> Dict[str, Any]:
+        ...
+
+    def _op(
+        self: OperableType, other: OperableType, _method: Optional[str] = None
+    ) -> OperableType:
+
+        op_dct = {
+            "=": lambda x, y: y,
+            "assign": lambda x, y: y,
+            "+": operator.add,
+            "add": operator.add,
+            "-": operator.sub,
+            "sub": operator.sub,
+            "*": operator.mul,
+            "mul": operator.mul,
+            "/": operator.truediv,
+            "truediv": operator.truediv,
+        }
+
+        assert other.__class__ is self.__class__, (
+            "Can only add together items of the same class "
+            f"not ({self.__class__}, {other.__class__})"
+        )
+
+        if not _method:
+            _method = other._method
+
+        try:
+            fn = op_dct[_method]
+        except KeyError:
+            raise AttributeError(f"method {other._method} not availible")
+
+        sdct = self.as_dict()
+
+        dct = {k: fn(self[k], other[k]) for k in other.keys()}
+
+        sdct.update(dct)
+
+        return self.__class__(**sdct)
+
+    def __add__(self: OperableType, other: OperableType) -> OperableType:
+        return self._op(other, _method="add")
